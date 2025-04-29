@@ -1,8 +1,31 @@
-// main.js
-const { app, BrowserWindow, ipcMain } = require('electron');
+/** main.js (src/main/main.js) - ปรับให้รองรับ dev/build */
+const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
-const { Worker } = require('worker_threads'); // นำเข้า Worker
-let rosWorker; // Store the worker here
+const { Worker } = require('worker_threads');
+const fs = require('fs');
+
+
+
+
+let rosWorker;
+
+const isDev = !app.isPackaged;
+const VITE_DEV_SERVER_URL = 'http://localhost:5173';
+const VITE_DIST_PATH = path.join(__dirname, '../../dist');
+
+// Quick Fix ชั่วคราวตอน dev ทำ proxy ไฟล์ผ่าน express หรือ http server
+if (isDev) {
+  const express = require('express');
+  const serveStatic = require('serve-static');
+  const appServer = express();
+  appServer.use('/videos', serveStatic('/home/leoss/Videos/dummy'));
+
+  appServer.listen(3001, () => {
+    console.log('🎥 Video static server running on http://localhost:3001/videos');
+  });
+}
+
+//////////////////////////////////////////////////////////////////
 
 function createWindow() {
   const mainWindow = new BrowserWindow({
@@ -15,7 +38,12 @@ function createWindow() {
     },
   });
 
-  mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
+  if (isDev) {
+    mainWindow.loadURL(VITE_DEV_SERVER_URL);
+    mainWindow.webContents.openDevTools();
+  } else {
+    mainWindow.loadFile(path.join(VITE_DIST_PATH, 'index.html'));
+  }
 }
 
 app.whenReady().then(() => {
@@ -42,20 +70,11 @@ app.whenReady().then(() => {
     console.error('❌ Failed to create Worker:', error);
   }
 
-  //listen from worker process
-  rosWorker.on('message', (message) => {
-    switch (message.type) {
-      case 'log':
-        console.log(message.data);
-        break;
-    }
-  });
   app.on('activate', function () {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
 });
 
-// รับข้อมูลจาก Renderer แล้วส่งไป ROSBridge
 ipcMain.on('key-command', (_, { command }) => {
   if (rosWorker) {
     rosWorker.postMessage({ type: 'sendDrive', command: command });
@@ -70,7 +89,20 @@ ipcMain.on('uint32-command', (_, { command }) => {
 });
 
 ipcMain.handle('get-ws-port', async () => {
-    return 8080;
+  return 8080;
+});
+
+ipcMain.handle('dialog:select-folder', async () => {
+  const result = await dialog.showOpenDialog({
+    properties: ['openDirectory']
+  });
+  return result.canceled ? null : result.filePaths[0];
+});
+
+ipcMain.handle('load:videos', async (event, folderPath) => {
+  if (!folderPath) return [];
+  const files = fs.readdirSync(folderPath);
+  return files.filter(f => f.endsWith('.mp4') || f.endsWith('.webm') || f.endsWith('.mov'));
 });
 
 app.on('before-quit', () => {

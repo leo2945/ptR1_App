@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Robot Control App</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    body {
+      background-color: #282828;
+      color: #cacaca;
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 130vh;
+    }
+    .panel {
+      padding: 20px;
+      background: #3a3a3a;
+      border-radius: 10px;
+    }
+    h1, h2 {
+      text-align: center;
+    }
+    .controls {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+    input[type="number"], select, button {
+      padding: 5px;
+      font-size: 16px;
+    }
+    .video-stream, .map-display {
+      width: 100%;
+      height: 300px;
+      background: black;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      border-radius: 10px;
+    }
+    .table-container {
+      grid-column: span 3;
+      text-align: center;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: rgb(82, 82, 82);
+      color: black;
+    }
+    th, td {
+      border: 1px solid black;
+      padding: 8px;
+      text-align: left;
+    }
+    th {
+      background: #676767;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+
+    <!-- ซีกซ้าย: ควบคุมหุ่นยนต์ -->
+    <div class="panel">
+      <h1>🤖 Robot Control</h1>
+      <div class="controls">
+        <div class="toggle">
+          <label for="keyboard-toggle">Keyboard Control:</label>
+          <input type="checkbox" id="keyboard-toggle" checked>
+        </div>
+
+        <div>
+          <label for="pwm-value">PWM Value:</label>
+          <input type="number" id="pwm-value" min="0" max="255" value="70">
+        </div>
+
+        <div class="cmd-section">
+          <label for="cmd-dropdown">Select Command:</label>
+          <select id="cmd-dropdown">
+            <option value="0x07000000">global variable (0x07000000)</option>
+            <option value="0x05000000">drive mode AUTO (0x05000000)</option>
+            <option value="0x05000001">drive mode MANUAL (0x05000001)</option>
+          </select>
+          <button id="send-selected-cmd-button">Send Selected Command</button>
+        </div>
+
+        <div class="cmd-input-section">
+          <label for="cmd-input">Enter Custom Command:</label>
+          <input type="text" id="cmd-input" placeholder="0x05000001"/>
+          <button id="send-custom-cmd-button">Send Custom Command</button>
+        </div>
+      </div>
+      <p>🔼 W: Forward | 🔽 S: Backward | ◀ A: Left | ▶ D: Right</p>
+    </div>
+
+    <!-- ซีกกลาง: Streaming Video -->
+    <div class="panel">
+      <h2>📹 Live Video Stream</h2>
+      <div class="video-stream">
+        <body>
+          <video id="video" autoplay playsinline controls style="width: 100%;"></video>
+          <script type="module" src="./renderer.js"></script>
+        </body>
+      </div>
+    </div>
+
+    <!-- ซีกขวา: แสดงผลแผนที่ -->
+    <div class="panel">
+      <h2>🗺️ Map Display</h2>
+      <div id="map-display" style="width: 100%; height: 300px; background: #222;"></div>
+       <script>
+        const ws = new WebSocket('ws://localhost:8080');
+        ws.onmessage = (event) => {
+          const data = JSON.parse(event.data);
+          if (data.type === 'map') {
+            renderMap(data.data);
+          }
+        };
+      
+        function renderMap(mapData) {
+          const canvas = document.createElement('canvas');
+          canvas.width = mapData.info.width;
+          canvas.height = mapData.info.height;
+          const ctx = canvas.getContext('2d');
+          const imageData = ctx.createImageData(canvas.width, canvas.height);
+          for (let i = 0; i < mapData.data.length; i++) {
+            const value = mapData.data[i] === -1 ? 205 : (100 - mapData.data[i]) * 2.55;
+            imageData.data[i * 4] = value;
+            imageData.data[i * 4 + 1] = value;
+            imageData.data[i * 4 + 2] = value;
+            imageData.data[i * 4 + 3] = 255;
+          }
+          ctx.putImageData(imageData, 0, 0);
+          document.getElementById('map-display').innerHTML = '';
+          document.getElementById('map-display').appendChild(canvas);
+        }
+      </script>
+    </div>
+
+    <!-- ตารางคำสั่ง (ด้านล่าง) -->
+    <div class="table-container panel">
+      <h2>Command List</h2>
+      <table>
+        <tr>
+          <th>Command</th>
+          <th>Description</th>
+        </tr>
+        <tr>
+          <td>0x010000SS</td>
+          <td>Edit time_delay</td>
+        </tr>
+        <tr>
+          <td>0x020000SS</td>
+          <td>Edit STEP_SIZE_X</td>
+        </tr>
+        <tr>
+          <td>0x030000SS</td>
+          <td>Edit STEP_SIZE_Y</td>
+        </tr>
+        <tr>
+          <td>0x05000000</td>
+          <td>drive AUTO</td>
+        </tr>
+        <tr>
+          <td>0x05000001</td>
+          <td>drive MANUAL</td>
+        </tr>
+        <tr>
+          <td>0x06000000</td>
+          <td>debug off</td>
+        </tr>
+        <tr>
+          <td>0x06000001</td>
+          <td>debug on</td>
+        </tr>
+        <tr>
+          <td>0x07000000</td>
+          <td>global variable call</td>
+        </tr>
+      </table>
+    </div>
+
+  </div>
+
+  <script src="app.js"></script>
+
+</body>
+</html>

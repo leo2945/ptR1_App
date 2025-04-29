@@ -1,0 +1,204 @@
+body {
+  margin: 0;
+  display: flex;
+  height: 100vh;
+  font-family: 'Segoe UI', sans-serif;
+  background-color: #1e1f22;
+  color: #e5e5e5;
+}
+
+input, select, button {
+  padding: 5px;
+  font-size: 12px;
+}
+
+.sidebar {
+  width: 70px;
+  background-color: #2b2d31;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 10px;
+}
+
+.sidebar-item {
+  width: 50px;
+  height: 50px;
+  margin: 10px 0;
+  background-color: #3b3d43;
+  border-radius: 15px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 22px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.sidebar-item:hover,
+.sidebar-item.active {
+  background-color: #5865f2;
+  color: white;
+}
+
+.main-content {
+  flex-grow: 1;
+  padding: 20px;
+  overflow-y: auto;
+}
+
+.view {
+  display: none;
+}
+
+.view:not(.hidden) {
+  display: block;
+}
+
+.home-container {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.panel {
+  padding: 10px;
+  background: #3a3a3a;
+  border-radius: 5px;
+}
+
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 60px;
+  height: 34px;
+  align-content: center;
+}
+
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #009255;
+  transition: 0.2s;
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 26px;
+  width: 26px;
+  left: 4px;
+  bottom: 4px;
+  background-color: white;
+  transition: 0.2s;
+}
+
+input:checked + .slider {
+  background-color: #2196F3;
+}
+
+input:checked + .slider:before {
+  transform: translateX(26px);
+}
+
+.controls-main {
+  width: 100%;
+  max-width: 600px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+#view-control {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 20px;
+}
+
+.video-layout {
+  display: flex;
+  gap: 20px;
+}
+
+.video-left {
+  flex: 2;
+}
+
+.video-right {
+  flex: 3;
+  background: #2e2e2e;
+  padding: 10px;
+  border-radius: 5px;
+  overflow-y: auto;
+  max-height: 500px;
+}
+
+.video-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 10px;
+}
+
+.video-thumb {
+  width: 100%;
+  height: 80px;
+  object-fit: cover;
+  cursor: pointer;
+  border: 2px solid transparent;
+  border-radius: 5px;
+  background: #111;
+}
+
+.video-thumb:hover {
+  border-color: #4fc3f7;
+}
+
+#select-folder-btn {
+  background-color: #5865f2; /* สีพื้นหลัง */
+  color: white;              /* สีตัวอักษร */
+  border: none;              /* เอาขอบปุ่มออก */
+  padding: 10px 20px;        /* ขนาดภายในปุ่ม */
+  font-size: 16px;           /* ขนาดตัวอักษร */
+  border-radius: 8px;        /* มุมโค้งมน */
+  cursor: pointer;           /* เป็นรูปมือเวลาเอาเมาส์ชี้ */
+  margin-bottom: 10px;
+  transition: background-color 0.3s; /* ทำให้เวลาชี้แล้วนิ่ม */
+}
+
+/* เมื่อเอาเมาส์ไป hover ปุ่ม */
+#select-folder-btn:hover {
+  background-color: #404eed; /* สีพื้นหลังตอน hover */
+}
+
+#ipInput {
+  width: 20%;
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  background: #222;
+  color: white;
+  font-size: 16px; 
+}
+
+#connectButton{
+  width: 15%;
+  height: 40px;
+  background: #222;
+  color: white;
+  font-size: 16px; 
+}
+
+
+

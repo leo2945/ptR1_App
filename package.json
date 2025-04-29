@@ -3,14 +3,23 @@
   "version": "1.0.0",
   "main": "src/main/main.js",
   "scripts": {
-    "start": "electron .",
-    "test": "echo \"Error: no test specified\" && exit 1"
+  "dev": "vite",
+  "electron": "electron .",
+  "start": "concurrently -k \"vite\" \"wait-on http://localhost:5173 && electron .\"",
+  "build": "vite build"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "description": "",
   "devDependencies": {
-    "electron": "^34.2.0"
+    "concurrently": "^8.2.2",
+    "electron": "^34.5.0",
+    "wait-on": "^7.2.0"
+  },
+  "dependencies": {
+    "mediasoup-client": "^3.9.5",
+    "socket.io-client": "^4.8.1",
+    "vite": "^6.2.5"
   }
 }
