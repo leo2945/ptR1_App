@@ -3,11 +3,10 @@ const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 const { Worker } = require('worker_threads');
 const fs = require('fs');
-
-
-
+const { exec } = require('child_process');
 
 let rosWorker;
+let mainWindow;
 
 const isDev = !app.isPackaged;
 const VITE_DEV_SERVER_URL = 'http://localhost:5173';
@@ -18,7 +17,7 @@ if (isDev) {
   const express = require('express');
   const serveStatic = require('serve-static');
   const appServer = express();
-  appServer.use('/videos', serveStatic('/home/leoss/Videos/dummy'));
+  appServer.use('/videos', serveStatic('/home/leoss/Videos/ptR1'));
 
   appServer.listen(3001, () => {
     console.log('🎥 Video static server running on http://localhost:3001/videos');
@@ -27,14 +26,27 @@ if (isDev) {
 
 //////////////////////////////////////////////////////////////////
 
-function createWindow() {
-  const mainWindow = new BrowserWindow({
+function createWindow(ip) {
+  const wsURL = `ws://${ip}:8181`;
+  const mediaURL = `http://${"127.0.0.1"}:3001`;
+
+  mainWindow = new BrowserWindow({
     width: 1280,
     height: 720,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
-      nodeIntegration: false
+      nodeIntegration: false,
+
+      contentSecurityPolicy: `
+        default-src 'self';
+        script-src 'self';
+        style-src 'self' 'unsafe-inline';
+        img-src 'self' data: blob:;
+        connect-src 'self' ws: http:;
+        media-src 'self' blob: http:;
+      `
+    
     },
   });
 
@@ -52,9 +64,15 @@ app.whenReady().then(() => {
   try {
     rosWorker = new Worker(path.join(__dirname, 'server.js'));
 
-    rosWorker.on('message', (message) => {
-      console.log('👷 Worker Response:', message);
+    rosWorker.on('message', (msg) => {
+      if (msg.type === 'image') {
+        mainWindow?.webContents.send('camera:image', msg.data);
+      }
     });
+
+    // rosWorker.on('message', (message) => {
+    //   console.log('👷 Worker Response:', message);
+    // });
 
     rosWorker.on('error', (error) => {
       console.error('❌ Worker Error:', error);
@@ -64,8 +82,8 @@ app.whenReady().then(() => {
       console.log(`🛑 Worker exited with code ${code}`);
     });
 
-    rosWorker.postMessage({ type: 'connectROS', url: 'ws://127.0.0.1:9090' });
-    rosWorker.postMessage({ type: 'startWSS', port: 8080 });
+    //rosWorker.postMessage({ type: 'connectROS', url: 'ws://127.0.0.1:9090' });
+    //rosWorker.postMessage({ type: 'startWSS', port: 8080 });
   } catch (error) {
     console.error('❌ Failed to create Worker:', error);
   }
@@ -83,7 +101,19 @@ ipcMain.on('key-command', (_, { command }) => {
   }
 });
 
+ipcMain.on('servo-command', (_, { command }) => {
+  if (rosWorker) {
+    rosWorker.postMessage({ type: 'sendServo', command: command });
+  } else {
+    console.error('❌ Worker not initialized when sending servo-command');
+  }
+});
+
 ipcMain.on('uint32-command', (_, { command }) => {
+  if (!rosWorker) {
+    console.error('❌ Worker not initialized when sending uint32-command');
+    return;
+  }
   console.log(`🎮 Received uint32 Command: ${command} (main log)`);
   rosWorker.postMessage({ type: 'sendCmd', command: command });
 });
@@ -99,11 +129,98 @@ ipcMain.handle('dialog:select-folder', async () => {
   return result.canceled ? null : result.filePaths[0];
 });
 
-ipcMain.handle('load:videos', async (event, folderPath) => {
-  if (!folderPath) return [];
-  const files = fs.readdirSync(folderPath);
-  return files.filter(f => f.endsWith('.mp4') || f.endsWith('.webm') || f.endsWith('.mov'));
+
+
+const getAllVideoFiles = (dirPath, arrayOfFiles = []) => {
+  const files = fs.readdirSync(dirPath);
+  files.forEach((file) => {
+    const fullPath = path.join(dirPath, file);
+    const stat = fs.statSync(fullPath);
+    if (stat.isDirectory()) {
+      getAllVideoFiles(fullPath, arrayOfFiles);
+    } else if (/\.(mp4|webm|mov)$/i.test(file)) {
+      arrayOfFiles.push({
+        path: fullPath,
+        relativePath: path.relative(path.join(app.getPath('videos'), 'ptR1'), fullPath),
+        name: file,
+        mtime: stat.mtimeMs
+      });
+    }
+  });
+  return arrayOfFiles;
+};
+
+ipcMain.handle('load:videos', async (event, customPath = null) => {
+  const baseDir = customPath || path.join(app.getPath('videos'), 'ptR1');
+  if (!fs.existsSync(baseDir)) return [];
+
+  const allVideos = getAllVideoFiles(baseDir);
+  allVideos.sort((a, b) => b.mtime - a.mtime); // เรียงจากใหม่ → เก่า
+
+  return allVideos;
 });
+
+
+
+ipcMain.on('relay-command', (_, { relayId, command }) => {
+  if (!rosWorker) {
+    console.error('❌ Worker not initialized when sending relay-command');
+    return;
+  }
+  console.log(`🔧 Received relay command: ${relayId} → ${command}`);
+  rosWorker.postMessage({
+    type: 'sendRelay',
+    relayId,
+    command
+  });
+});
+
+ipcMain.on('set-manual-mode', (event, { state }) => {
+  const command = state ? 0x05000001 : 0x05000000; // ON / OFF
+  console.log(`Main:  Switching MANUAL MODE ${state ? 'ON' : 'OFF'} → Send: 0x${command.toString(16)}`);
+  rosWorker.postMessage({ type: 'sendCmd', command });
+});
+
+ipcMain.on('save-video', (event, { buffer, date, filename }) => {
+  const baseDir = path.join(app.getPath('videos'), 'ptR1', date);
+  if (!fs.existsSync(baseDir)) {
+    fs.mkdirSync(baseDir, { recursive: true });
+  }
+
+  const webmPath = path.join(baseDir, filename);
+  const mp4Path = webmPath.replace(/\.webm$/, '.mp4');
+
+  // เขียนไฟล์ .webm
+  fs.writeFile(webmPath, buffer, (err) => {
+    if (err) {
+      console.error(`❌ Write .webm failed: ${err}`);
+      return;
+    }
+  
+    // ✅ หลังเขียนเสร็จแน่นอน ค่อยแปลง
+    const cmd = `ffmpeg -y -i "${webmPath}" -c:v libx264 -c:a aac "${mp4Path}"`;
+    exec(cmd, (error, stdout, stderr) => {
+      if (error) {
+        console.error(`❌ FFmpeg error: ${error.message}`);
+        console.error(stderr); // 🟡 ดูรายละเอียดเพิ่ม
+        return;
+      }
+      console.log(`✅ Saved MP4: ${mp4Path}`);
+    });
+  });
+});
+
+ipcMain.on('connect-camera-ws', (event, ip) => {
+  const camUrl = `ws://${ip}:8181`;
+  rosWorker.postMessage({ type: 'connectCameraWS', url: camUrl });
+  console.log(`Main: 🎥 Connecting to camera at ${camUrl}`);
+});
+
+
+
+
+
+
 
 app.on('before-quit', () => {
   if (rosWorker) {
@@ -113,4 +230,10 @@ app.on('before-quit', () => {
 
 app.on('window-all-closed', function () {
   if (process.platform !== 'darwin') app.quit();
+});
+
+ipcMain.on('connect-rosbridge', (event, ip) => {
+  const url = `ws://${ip}:9090`;
+  rosWorker.postMessage({ type: 'connectROS', url: url });
+  console.log(`Main: 🔌 Connecting to ROSBridge at ${url}`);
 });

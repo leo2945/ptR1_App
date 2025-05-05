@@ -11,14 +11,10 @@
     });
   });
   
-  // Electron camera listener
-  window.electronAPI?.onImage((data) => {
-    const blob = new Blob([data], { type: "image/jpeg" });
-    const url = URL.createObjectURL(blob);
-    const stream = document.getElementById("stream");
-    const homeStream = document.getElementById("stream-home");
-    if (stream) stream.src = url;
-    if (homeStream) homeStream.src = url;
-  });
+
+
+
+
+ 
   
   

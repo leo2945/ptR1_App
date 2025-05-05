@@ -1,44 +1,6 @@
-
 console.log('👷 app.js started');
 
 let cameraSocket = null;
-
-function connectCameraSocket() {
-  console.log('app: Connecting to camera socket...');
-
-  const ipInput = document.getElementById('ipInput');
-  const ip = ipInput?.value || 'localhost'; // ถ้าไม่มี ipInput ให้ fallback เป็น localhost
-  const wsURL = `ws://${ip}:8181`;
-
-  cameraSocket = new WebSocket(wsURL);
-  cameraSocket.binaryType = 'blob';
-
-  cameraSocket.onopen = () => {
-    console.log(`app: Camera socket connected to ${wsURL}`);
-  };
-
-  cameraSocket.onmessage = (event) => {
-    const streamElement = document.getElementById('stream');
-    if (event.data instanceof Blob) {
-      const url = URL.createObjectURL(event.data);
-      streamElement.src = url;
-      streamElement.onload = () => {
-        URL.revokeObjectURL(url);
-      };
-    }
-  };
-
-  cameraSocket.onclose = () => {
-    console.warn('Camera socket closed. Reconnecting in 3 seconds...');
-    setTimeout(connectCameraSocket, 3000);
-  };
-
-  cameraSocket.onerror = (error) => {
-    console.error('Camera socket error:', error);
-    cameraSocket.close();
-  };
-}
-
 
 document.addEventListener('DOMContentLoaded', () => {
   console.log("app: DOMContentLoaded fired!");
@@ -50,53 +12,51 @@ document.addEventListener('DOMContentLoaded', () => {
   const sendCustomCmdButton = document.getElementById('send-custom-cmd-button');
   const modeLabel = document.getElementById('mode-label');
   const connectButton = document.getElementById('connectButton');
+  loadVideos(); 
 
   // connect image ws ip
   connectButton.addEventListener('click', () => {
-    connectCameraSocket();
+    const ip = document.getElementById('ipInput')?.value || 'localhost';
+    window.electronAPI.connectCameraWS(ip);
   });
-
-  // ถ้าอยาก auto-connect ตอนแรกก็เปิดบรรทัดนี้ได้
-  // connectCameraSocket();
 
   if (!keyboardToggle || !pwmInput || !cmdDropdown || !sendSelectedCmdButton || !cmdInput || !sendCustomCmdButton || !modeLabel) {
     console.error("❌ UI elements not found! Check HTML structure.");
     return;
   }
 
-  // ✅ เมื่อสลับสวิตช์ keyboard toggle → เปลี่ยน label
-  keyboardToggle.addEventListener('change', (event) => {
-    const isManual = event.target.checked;
-    modeLabel.textContent = isManual ? 'MANUAL' : 'AUTO';
+  const pressedKeys = new Set();
+  const intervalMap = new Map();
 
-    if (isManual) {
-      console.log('🛠 Mode switched to MANUAL');
-    } else {
-      console.log('🚗 Mode switched to AUTO');
-    }
-  });
-
-  let intervalId = null;
-  let activeKey = null;
-
-  // ✅ กดคีย์เพื่อส่ง Drive Command
   document.addEventListener('keydown', (event) => {
-    if (activeKey === event.key) return;
+    const code = event.code;
 
-    activeKey = event.key;
-    sendKeyDrive(activeKey);
+    if (pressedKeys.has(code)) return; // กำลังถูกกดอยู่
 
-    intervalId = setInterval(() => {
-      sendKeyDrive(activeKey);
-    }, 100);
+    pressedKeys.add(code);
+
+    const isServoKey = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(code);
+
+    const intervalId = setInterval(() => {
+      if (isServoKey) {
+        sendServoControl(event);
+      } else {
+        sendKeyDrive(event);
+      }
+    }, isServoKey ? 150 : 100);
+
+    intervalMap.set(code, intervalId);
   });
 
-  document.addEventListener('keyup', () => {
-    if (intervalId) {
-      clearInterval(intervalId);
-      intervalId = null;
-      activeKey = null;
+  document.addEventListener('keyup', (event) => {
+    const code = event.code;
+
+    if (intervalMap.has(code)) {
+      clearInterval(intervalMap.get(code));
+      intervalMap.delete(code);
     }
+
+    pressedKeys.delete(code);
   });
 
   // ✅ ฟังก์ชันส่ง UInt32 command
@@ -122,37 +82,56 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 });
 
-// ✅ ฟังก์ชันส่ง Drive command เฉพาะตอน MANUAL
-const sendKeyDrive = (key) => {
-  if (!key) return; 
+// ✅ ฟังก์ชันส่ง Drive command เฉพาะตอน MANUAL ON
+const sendKeyDrive = (event) => {
+  if (!event || !event.code) return;
   const keyboardToggle = document.getElementById('keyboard-toggle');
   const pwmInput = document.getElementById('pwm-value');
   const modeLabel = document.getElementById('mode-label');
 
   if (!keyboardToggle || !pwmInput || !modeLabel) return;
-  if (modeLabel.textContent.trim().toUpperCase() !== 'MANUAL') return; // ✅ ต้องเป็น MANUAL เท่านั้น
+  if (modeLabel.textContent.trim().toUpperCase() !== 'MANUAL ON') return;
 
   let command;
   let pwm = parseInt(pwmInput.value) || 70;
   if (pwm > 255) pwm = 255;
   if (pwm < 0) pwm = 0;
 
-  switch (key.toLowerCase()) {
-    case 'w': command = 0x0100 + pwm; break;//forward
-    case 's': command = 0x0400 + pwm; break;//backward
-    case 'a': command = 0x0200 + pwm; break;//left
-    case 'd': command = 0x0300 + pwm; break;//right
-    case 'r': command = 0x0500 + pwm; break;//turn left
-    case 'f': command = 0x0600 + pwm; break;//turn right
-    case 'e': command = 0x0700 + pwm; break;//forward left
-    case 'q': command = 0x0800 + pwm; break;//forward right
+  switch (event.code) {
+    case 'KeyW': command = 0x0100 + pwm; break;
+    case 'KeyS': command = 0x0400 + pwm; break;
+    case 'KeyA': command = 0x0200 + pwm; break;
+    case 'KeyD': command = 0x0300 + pwm; break;
+    case 'KeyR': command = 0x0500 + pwm; break;
+    case 'KeyF': command = 0x0600 + pwm; break;
+    case 'KeyE': command = 0x0700 + pwm; break;
+    case 'KeyQ': command = 0x0800 + pwm; break;
     default: return;
   }
-
   command = command & 0xFFFF;
-  console.log(`Key pressed: ${key} -> Command: ${command.toString(16).toUpperCase()}, PWM: ${pwm}`);
+  console.log(`Key pressed: ${event.code} -> Command: ${command.toString(16).toUpperCase()}, PWM: ${pwm}`);
   window.robotControl.sendKeyCommand(command);
 };
 
+const sendServoControl = (event) => {
+  if (!event || !event.code) return;
 
+  const keyboardToggle = document.getElementById('keyboard-toggle');
+  const modeLabel = document.getElementById('mode-label');
 
+  if (!keyboardToggle || !modeLabel) return;
+  if (modeLabel.textContent.trim().toUpperCase() !== 'MANUAL ON') return;
+
+  let command;
+
+  switch (event.code) {
+    case 'ArrowUp':    command = 0x01; break;
+    case 'ArrowDown':  command = 0x02; break;
+    case 'ArrowLeft':  command = 0x03; break;
+    case 'ArrowRight': command = 0x04; break;
+    default: return;
+  }
+
+  console.log(`Servo key: ${event.code} -> Command: ${command}`);
+  window.robotControl.sendServoCommand(command);
+};
