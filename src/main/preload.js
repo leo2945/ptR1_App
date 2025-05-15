@@ -8,7 +8,8 @@ contextBridge.exposeInMainWorld('robotControl', {
 
 contextBridge.exposeInMainWorld('api', {
   getWebSocketPort: () => ipcRenderer.invoke('get-ws-port'), // ฟังก์ชันขอพอร์ต
-});
+});// 📂 ปุ่มเปลี่ยนโฟลเดอร์
+
 
 contextBridge.exposeInMainWorld('electronAPI', {
   selectFolder: () => ipcRenderer.invoke('dialog:select-folder'),
@@ -23,5 +24,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   connectCameraWS: (ip) => ipcRenderer.send('connect-camera-ws', ip),
   onImage: (callback) => ipcRenderer.on('camera:image', (_, data) => callback(data)),
+  onPowerUpdate: (callback) => ipcRenderer.on('power', (event, data) => callback(data)),
+  sendCommand_vairable: (variableId, value) => {
+    ipcRenderer.send('uint32-command', { variableId, value });
+  },
 
 });

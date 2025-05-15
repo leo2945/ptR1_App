@@ -33,6 +33,7 @@ function createWindow(ip) {
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 720,
+    icon: path.join(__dirname, '../../assets/icon.png'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -52,7 +53,7 @@ function createWindow(ip) {
 
   if (isDev) {
     mainWindow.loadURL(VITE_DEV_SERVER_URL);
-    mainWindow.webContents.openDevTools();
+    //mainWindow.webContents.openDevTools();
   } else {
     mainWindow.loadFile(path.join(VITE_DIST_PATH, 'index.html'));
   }
@@ -64,23 +65,42 @@ app.whenReady().then(() => {
   try {
     rosWorker = new Worker(path.join(__dirname, 'server.js'));
 
-    rosWorker.on('message', (msg) => {
-      if (msg.type === 'image') {
-        mainWindow?.webContents.send('camera:image', msg.data);
+    rosWorker.on('message', (message) => {
+      switch (message.type) {
+        case 'image':
+          mainWindow?.webContents.send('camera:image', message.data);
+          break;
+        case 'power':
+          mainWindow?.webContents.send('power', message.data);
+          break;
+        case 'log':
+          console.log('Worker Log:', message.data);
+          break;
+        case 'error':
+          console.error('Worker Error:', message.data);
+          break;
+        default:
+          console.warn('Unknown message from worker:', message);
       }
     });
-
-    // rosWorker.on('message', (message) => {
-    //   console.log('👷 Worker Response:', message);
-    // });
-
+  
     rosWorker.on('error', (error) => {
       console.error('❌ Worker Error:', error);
     });
-
+  
     rosWorker.on('exit', (code) => {
       console.log(`🛑 Worker exited with code ${code}`);
     });
+  
+    ipcMain.on('uint32-command', (event, message) => {
+    const variableId = message.variableId & 0xFF;
+    const value = message.value & 0xFFFFFF;
+    const command = (variableId << 24) | value;
+
+    console.log(`📦 sendCommand: ID=${variableId}, Value=${value}, UInt32=0x${command.toString(16)}`);
+
+    rosWorker.postMessage({ type: 'command', command });
+  });
 
     //rosWorker.postMessage({ type: 'connectROS', url: 'ws://127.0.0.1:9090' });
     //rosWorker.postMessage({ type: 'startWSS', port: 8080 });
@@ -129,8 +149,6 @@ ipcMain.handle('dialog:select-folder', async () => {
   return result.canceled ? null : result.filePaths[0];
 });
 
-
-
 const getAllVideoFiles = (dirPath, arrayOfFiles = []) => {
   const files = fs.readdirSync(dirPath);
   files.forEach((file) => {
@@ -160,8 +178,6 @@ ipcMain.handle('load:videos', async (event, customPath = null) => {
   return allVideos;
 });
 
-
-
 ipcMain.on('relay-command', (_, { relayId, command }) => {
   if (!rosWorker) {
     console.error('❌ Worker not initialized when sending relay-command');
@@ -176,9 +192,14 @@ ipcMain.on('relay-command', (_, { relayId, command }) => {
 });
 
 ipcMain.on('set-manual-mode', (event, { state }) => {
-  const command = state ? 0x05000001 : 0x05000000; // ON / OFF
-  console.log(`Main:  Switching MANUAL MODE ${state ? 'ON' : 'OFF'} → Send: 0x${command.toString(16)}`);
-  rosWorker.postMessage({ type: 'sendCmd', command });
+  if (state) {
+    const command = 0x05000001; // เปิด MANUAL
+    console.log(`Main: Switching MANUAL MODE ON → Send: 0x${command.toString(16)}`);
+    rosWorker.postMessage({ type: 'sendCmd', command });
+  } else {
+    console.log('Main: Switching MANUAL MODE OFF → (no command sent)');
+    // ไม่ส่งอะไร
+  }
 });
 
 ipcMain.on('save-video', (event, { buffer, date, filename }) => {
@@ -215,12 +236,6 @@ ipcMain.on('connect-camera-ws', (event, ip) => {
   rosWorker.postMessage({ type: 'connectCameraWS', url: camUrl });
   console.log(`Main: 🎥 Connecting to camera at ${camUrl}`);
 });
-
-
-
-
-
-
 
 app.on('before-quit', () => {
   if (rosWorker) {

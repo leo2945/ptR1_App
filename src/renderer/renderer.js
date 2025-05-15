@@ -20,6 +20,11 @@ const modeLabel = document.getElementById("mode-label");
 document.getElementById("relayButton1").addEventListener("click", () => toggleRelay("relayButton1"));
 document.getElementById("relayButton2").addEventListener("click", () => toggleRelay("relayButton2"));
 
+// imu and magnetometer
+const toggle_imu = document.getElementById('toggle-control-imu');
+const toggle_mag = document.getElementById('toggle-control-mag');
+
+
 let mediaRecorder = null;
 let recordedChunks = [];
 let recordingInterval = null;
@@ -198,7 +203,6 @@ keyboardToggle.addEventListener('change', (event) => {
 });
 
 
-
 async function loadVideos(pathOverride = null) {
   const videoGallery = document.getElementById("video-gallery");
   const videoPlayer = document.getElementById("video-player");
@@ -237,11 +241,36 @@ async function loadVideos(pathOverride = null) {
   });
 }
 
-
 // 📂 ปุ่มเปลี่ยนโฟลเดอร์
 document.getElementById("select-folder-btn").addEventListener("click", async () => {
   const folderPath = await window.electronAPI.selectFolder();
   if (folderPath) {
     await loadVideos(folderPath); // ✅ ใช้ path ใหม่
   }
+});
+
+// 📥 รับข้อมูล sensor จาก main process ผ่าน worker
+window.electronAPI.onPowerUpdate((data) => {
+  const { voltage, current, percent } = data;
+
+  document.getElementById('voltage').textContent = `${voltage} V`;
+  document.getElementById('current').textContent = `${current} A`;
+  document.getElementById('percent').textContent = `${percent} %`;
+
+  // เปลี่ยนสีถ้าแบตต่ำกว่า 20%
+  const percentEl = document.getElementById('percent');
+  percentEl.style.color = parseFloat(percent) < 20 ? 'red' : 'white';
+});
+
+
+toggle_imu.addEventListener('change', () => {
+  const variableId = 0x09; // use_imu
+  const value = toggle.checked ? 1 : 0;
+  window.robotControl.sendCommand_vairable(variableId, value);
+});
+
+toggle_mag.addEventListener('change', () => {
+  const variableId = 0x0A; // use_imu
+  const value = toggle.checked ? 1 : 0;
+  window.robotControl.sendCommand_vairable(variableId, value);
 });

@@ -10,21 +10,25 @@ let rosAutoConnected = false;
 
 let cameraSocket = null;
 
+const BUFFER_SIZE_VOLTAGE = 10;  // ค่าเฉลี่ยจาก 10 วินาที
+let voltageBuffer = [];
+
 
 parentPort.on('message', (message) => {
-  switch (message.type) {
+  try {
+    switch (message.type) {
       case 'connectROS':
-          connectROSBridge(message.url);
-          break;
+        connectROSBridge(message.url);
+        break;
       case 'sendDrive':
-          sendDrive(message.command);
-          break;
+        sendDrive(message.command);
+        break;
       case 'sendCmd':
-          sendCommand(message.command);
-          break;
+        sendCommand(message.command);
+        break;
       case 'sendServo':
-          sendServo(message.command);
-          break;
+        sendServo(message.command);
+        break;
       case 'sendRelay':
         sendRelayViaCommand(message.relayId, message.command);
         break;
@@ -32,9 +36,15 @@ parentPort.on('message', (message) => {
         connectCameraSocket(message.url);
         break;
       default:
-          console.log(`Server : ❌ Unknown command: ${message.type}`);
+        console.warn(`Server ❌ Unknown command: ${message.type}`);
+    }
+  } catch (err) {
+    console.error(`Server: ❗ Worker Error while processing message [${message.type}]:`, err.message);
+    // คุณสามารถเลือกส่งกลับ frontend ได้ด้วย เช่น:
+    // parentPort.postMessage({ type: 'error', data: `Error: ${err.message}` });
   }
 });
+
 
 // 🌐 ฟังก์ชันเชื่อมต่อ ROSBridge
 function connectROSBridge(url) {
@@ -64,6 +74,7 @@ function connectROSBridge(url) {
     console.log('Server : ✅ Connected to ROSBridge at', url);
     //subscribe function
     subscribeMapData();
+    subscribeSensorData();
     if (reconnectTimer) {
       clearInterval(reconnectTimer);
       reconnectTimer = null;
@@ -101,12 +112,12 @@ function startReconnect() {
 function sendRelayViaCommand(relayId, command) {
   const relayCommandMap = {
     relay1: {
-      on:  0x08000000,
-      off: 0x08000001
+      on:  0x08000001,
+      off: 0x08000000
     },
     relay2: {
-      on:  0x08000002,
-      off: 0x08000003
+      on:  0x08000003,
+      off: 0x08000002
     }
   };
 
@@ -184,13 +195,6 @@ function subscribeMapData() {
     name: '/map',
     messageType: 'nav_msgs/OccupancyGrid',
   });
-
-  mapTopic.subscribe((message) => {
-    const payload = JSON.stringify({ type: 'map', data: message });
-    wsServer.clients.forEach((client) => {
-      if (client.readyState === WebSocket.OPEN) client.send(payload);
-    });
-  });
 }
 
 
@@ -224,6 +228,61 @@ function connectCameraSocket(wsUrl) {
     console.error('[Camera] Error:', err);
     cameraSocket.close();
   };
+}
+
+// Power
+function subscribeSensorData() {
+  const sensorTopic = new ROSLIB.Topic({
+    ros: ros,
+    name: '/sensor/data',
+    messageType: 'std_msgs/UInt32',
+  });
+
+  sensorTopic.subscribe((message) => {
+    const raw = message.data >>> 0;
+    const current_mA = (raw >> 16) & 0xFFFF;
+    const voltage_cV = raw & 0xFFFF;
+
+    const voltage_V = voltage_cV / 100.0;
+    const current_A = current_mA / 1000.0;
+
+    // เติมค่าใหม่เข้า buffer
+    voltageBuffer.push(voltage_V);
+    if (voltageBuffer.length > BUFFER_SIZE_VOLTAGE) {
+        voltageBuffer.shift(); // ลบค่าที่เก่าที่สุดออก
+    }
+
+    // คำนวณค่าเฉลี่ย
+    let sum = 0;
+    for (let i = 0; i < voltageBuffer.length; i++) {
+        sum += voltageBuffer[i];
+    }
+    let avgVoltage = 0;
+    if (voltageBuffer.length > 0) {
+        avgVoltage = sum / voltageBuffer.length;
+    } else {
+        avgVoltage = 0; // ค่า default 
+    }
+
+
+
+    // คำนวณ % SOC แบบ linear (12.0V = 0%, 14.6V = 100%)
+    let soc = 0;
+    const maxVoltage = 13.40;
+    const minVoltage = 12.0;
+    if (avgVoltage >= maxVoltage) soc = 100;
+    else if (avgVoltage <= minVoltage) soc = 0;
+    else soc = ((avgVoltage - minVoltage) / (maxVoltage - minVoltage)) * 100;
+
+    parentPort.postMessage({
+      type: 'power',
+      data: {
+        voltage: voltage_V.toFixed(2),
+        current: current_A.toFixed(2),
+        percent: soc.toFixed(1)
+      }
+    });
+  });
 }
 
 

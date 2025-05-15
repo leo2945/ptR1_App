@@ -25,39 +25,7 @@ document.addEventListener('DOMContentLoaded', () => {
     return;
   }
 
-  const pressedKeys = new Set();
-  const intervalMap = new Map();
 
-  document.addEventListener('keydown', (event) => {
-    const code = event.code;
-
-    if (pressedKeys.has(code)) return; // กำลังถูกกดอยู่
-
-    pressedKeys.add(code);
-
-    const isServoKey = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(code);
-
-    const intervalId = setInterval(() => {
-      if (isServoKey) {
-        sendServoControl(event);
-      } else {
-        sendKeyDrive(event);
-      }
-    }, isServoKey ? 150 : 100);
-
-    intervalMap.set(code, intervalId);
-  });
-
-  document.addEventListener('keyup', (event) => {
-    const code = event.code;
-
-    if (intervalMap.has(code)) {
-      clearInterval(intervalMap.get(code));
-      intervalMap.delete(code);
-    }
-
-    pressedKeys.delete(code);
-  });
 
   // ✅ ฟังก์ชันส่ง UInt32 command
   const sendUInt32Command = (command) => {
@@ -83,29 +51,40 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ✅ ฟังก์ชันส่ง Drive command เฉพาะตอน MANUAL ON
+
+const pressedKeys = new Set();
+const intervalMap = new Map();
+const pwmMap = new Map();
+//let pwmMax = 200;
+const pwmStep = 5;
+const pwmInitial = 50;
+
 const sendKeyDrive = (event) => {
   if (!event || !event.code) return;
   const keyboardToggle = document.getElementById('keyboard-toggle');
-  const pwmInput = document.getElementById('pwm-value');
+  let pwmInput = document.getElementById('pwm-value');
   const modeLabel = document.getElementById('mode-label');
-
   if (!keyboardToggle || !pwmInput || !modeLabel) return;
   if (modeLabel.textContent.trim().toUpperCase() !== 'MANUAL ON') return;
+  const pwmInputValue = parseInt(pwmInput.value);
+  const pwmMax = (!isNaN(pwmInputValue) && pwmInputValue > 0) ? pwmInputValue : 255;
 
+  const hadPwm = pwmMap.has(event.code);
+  let pwm = hadPwm ? pwmMap.get(event.code) : pwmInitial;
   let command;
-  let pwm = parseInt(pwmInput.value) || 70;
-  if (pwm > 255) pwm = 255;
-  if (pwm < 0) pwm = 0;
+  //let pwm = pwmMap.has(event.code) ? pwmMap.get(event.code) : pwmInitial;
+  pwm = Math.min(pwm + pwmStep, pwmMax);
+  pwmMap.set(event.code, pwm);  // เก็บ pwm ล่าสุด
 
   switch (event.code) {
-    case 'KeyW': command = 0x0100 + pwm; break;
-    case 'KeyS': command = 0x0400 + pwm; break;
-    case 'KeyA': command = 0x0200 + pwm; break;
-    case 'KeyD': command = 0x0300 + pwm; break;
-    case 'KeyR': command = 0x0500 + pwm; break;
-    case 'KeyF': command = 0x0600 + pwm; break;
-    case 'KeyE': command = 0x0700 + pwm; break;
-    case 'KeyQ': command = 0x0800 + pwm; break;
+    case 'KeyW': command = 0x0100 + pwm; break; // Forward
+    case 'KeyS': command = 0x0400 + pwm; break; // Backward
+    case 'KeyA': command = 0x0200 + pwm; break; // Left
+    case 'KeyD': command = 0x0300 + pwm; break; // Right
+    case 'KeyR': command = 0x0500 + pwm; break; // turn left
+    case 'KeyF': command = 0x0600 + pwm; break; // turn right
+    case 'KeyQ': command = 0x0700 + pwm; break; // forward left
+    case 'KeyE': command = 0x0800 + pwm; break; // forward right
     default: return;
   }
   command = command & 0xFFFF;
@@ -113,6 +92,46 @@ const sendKeyDrive = (event) => {
   window.robotControl.sendKeyCommand(command);
 };
 
+
+document.addEventListener('keydown', (event) => {
+  const code = event.code;
+
+  if (pressedKeys.has(code)) return;
+  pressedKeys.add(code);
+
+  const isServoKey = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(code);
+
+  if (!isServoKey) {
+    pwmMap.set(code, pwmInitial);
+  }
+
+  const intervalId = setInterval(() => {
+    if (isServoKey) {
+      sendServoControl(event);
+    } else {
+      sendKeyDrive(event);
+    }
+  }, isServoKey ? 150 : 100);
+
+  intervalMap.set(code, intervalId);
+});
+
+document.addEventListener('keyup', (event) => {
+  const code = event.code;
+
+  //console.log(`⏏️ Key released: ${code}, clearing interval and PWM`);
+  //console.log('PWM before delete:', pwmMap.get(code));
+
+  if (intervalMap.has(code)) {
+    clearInterval(intervalMap.get(code));
+    intervalMap.delete(code);
+  }
+  pwmMap.delete(code);
+  pressedKeys.delete(code);
+});
+
+
+// ✅ ฟังก์ชันส่ง Servo command เฉพาะตอน MANUAL ON
 const sendServoControl = (event) => {
   if (!event || !event.code) return;
 
@@ -125,10 +144,10 @@ const sendServoControl = (event) => {
   let command;
 
   switch (event.code) {
-    case 'ArrowUp':    command = 0x01; break;
-    case 'ArrowDown':  command = 0x02; break;
-    case 'ArrowLeft':  command = 0x03; break;
-    case 'ArrowRight': command = 0x04; break;
+    case 'ArrowRight':    command = 0x01; break;
+    case 'ArrowLeft':  command = 0x02; break;
+    case 'ArrowUp':  command = 0x03; break;
+    case 'ArrowDown': command = 0x04; break;
     default: return;
   }
 

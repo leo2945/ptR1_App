@@ -31,6 +31,7 @@
             <canvas id="capture-canvas" width="640" height="480" style="display:none;"></canvas>
             <button id="start-record">Start Recording</button>
             <button id="stop-record" disabled>Stop Recording</button>
+            
           </div>
         </div>
 
@@ -44,6 +45,8 @@
             <select id="ipInput">
               <option value="localhost">localhost:8181</option>
               <option value="100.65.44.67">100.65.44.67:8181</option>
+              <option value="192.168.237.184">192.168.237.184:8181</option>
+
             </select>
             <button id="connectButton">Connect</button>
 
@@ -52,6 +55,8 @@
               <select id="ip-dropdown">
                 <option value="127.0.0.1">localhost:9090</option>
                 <option value="100.65.44.67">100.65.44.67:9090</option>
+                <option value="192.168.237.184">192.168.237.184:9090</option>
+
               </select>
               <button id="selected-ip">Selected ip address</button>
             </div>
@@ -60,17 +65,16 @@
               <div class="toggle">
                 <label for="keyboard-toggle">Control:</label>
                 <label class="switch">
-                  <input type="checkbox" id="keyboard-toggle" checked>
+                  <input type="checkbox" id="keyboard-toggle">
                   <span class="slider"></span>
                 </label>
-                <span id="mode-label" class="mode-text">MANUAL ON</span>
+                <span id="mode-label" class="mode-text">MANUAL OFF</span>
               </div>
               <div style="margin-top: 10px;">   
                 <label for="buttonR">Spot light 1</label>
                 <button class="buttonR" id="relayButton1">RELAY: OFF</button>
                 <label for="buttonR">Spot light 2</label>
-                <button class="buttonR" id="relayButton2">RELAY: OFF/<button>
-
+                <button class="buttonR" id="relayButton2">RELAY: OFF</button>
               </div>
               
             </div>
@@ -106,6 +110,20 @@
           <input type="text" id="cmd-input" placeholder="0x05000001"/>
           <button id="send-custom-cmd-button">Send Custom Command</button>
         </div>
+        <div id="power-panel" style="margin-top: 20px;">
+          <h4>🔋 Voltage: <span id="voltage">--</span></h4>
+          <h4>⚡ Current: <span id="current">--</span></h4>
+          <h4>📊 Battery: <span id="percent">--</span></h4>
+        </div>
+        <div id="status-panel" style="margin-top: 20px;">
+          <h4> Status: <span id="status">--</span></h4>
+          <h4> Connection: <span id="connection-status">--</span></h4>
+          <label for="toggle-control">IMU Control</label>
+          <input type="checkbox" id="toggle-control-imu">
+          <label for="toggle-control">Magnetometer Control</label>
+          <input type="checkbox" id="toggle-control-mag">
+
+
       </div>
     </div>
 
