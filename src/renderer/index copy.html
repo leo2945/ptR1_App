@@ -137,17 +137,7 @@
         <div class="grid">
           <div class="map-left">
             <div class="map-box">
-              <!-- ปุ่มสลับโหมด -->
-              <div class="map-mode-toggle">
-                <button id="btn-static-map" class="toggle-btn active">🗺️ Static Map</button>
-                <button id="btn-live-map" class="toggle-btn">📡 Live Mapping</button>
-              </div>
-
-              <!-- แผนที่แบบ Static -->
-              <canvas id="staticMapCanvas" width="640" height="400" class="map-canvas"></canvas>
-
-              <!-- Live View map -->
-              <canvas id="liveMapCanvas" width="640" height="400" class="map-canvas hidden"></canvas>
+              <canvas id="mapCanvas"></canvas>
             </div>
             <div class="control-box">
               <button class="control-btn purple">Add Waypoint</button>

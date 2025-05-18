@@ -3,10 +3,10 @@
   "version": "1.0.0",
   "main": "src/main/main.js",
   "scripts": {
-  "dev": "vite",
-  "electron": "electron .",
-  "start": "concurrently -k \"vite\" \"wait-on http://localhost:5173 && electron .\"",
-  "build": "vite build"
+    "dev": "vite",
+    "electron": "electron .",
+    "start": "concurrently -k \"vite\" \"wait-on http://localhost:5173 && electron .\"",
+    "build": "vite build"
   },
   "keywords": [],
   "author": "",
@@ -19,6 +19,7 @@
   },
   "dependencies": {
     "mediasoup-client": "^3.9.5",
+    "roslib": "^1.4.1",
     "socket.io-client": "^4.8.1",
     "vite": "^6.2.5"
   }

@@ -53,7 +53,7 @@ function createWindow(ip) {
 
   if (isDev) {
     mainWindow.loadURL(VITE_DEV_SERVER_URL);
-    //mainWindow.webContents.openDevTools();
+    mainWindow.webContents.openDevTools();
   } else {
     mainWindow.loadFile(path.join(VITE_DIST_PATH, 'index.html'));
   }
@@ -78,6 +78,9 @@ app.whenReady().then(() => {
           break;
         case 'error':
           console.error('Worker Error:', message.data);
+          break;
+        case 'connection':
+          mainWindow?.webContents.send('connection-status', message.data);
           break;
         default:
           console.warn('Unknown message from worker:', message);

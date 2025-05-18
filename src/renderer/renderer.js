@@ -24,6 +24,8 @@ document.getElementById("relayButton2").addEventListener("click", () => toggleRe
 const toggle_imu = document.getElementById('toggle-control-imu');
 const toggle_mag = document.getElementById('toggle-control-mag');
 
+// Connect status elements
+const connectionEl = document.getElementById('connection-status');
 
 let mediaRecorder = null;
 let recordedChunks = [];
@@ -151,14 +153,6 @@ stopBtn.addEventListener('click', () => {
   stopBtn.disabled = true;
 });
 
-// RosBridge IP Dropdown selection
-document.getElementById('selected-ip').addEventListener('click', () => {
-  const ip = document.getElementById('ip-dropdown').value;
-
-  //เชื่อมต่อ ROSBridge ที่ IP ที่เลือก
-  window.electronAPI.connectROSBridge(ip);
-});
-
 //relay button states
 const relayStates = {
   relay1: false,
@@ -249,20 +243,24 @@ document.getElementById("select-folder-btn").addEventListener("click", async () 
   }
 });
 
-// 📥 รับข้อมูล sensor จาก main process ผ่าน worker
-window.electronAPI.onPowerUpdate((data) => {
+if (window.electronAPI?.onPowerUpdate) {
+  window.electronAPI.onPowerUpdate((data) => {
+  //console.log("Power data received:", data);
   const { voltage, current, percent } = data;
 
   document.getElementById('voltage').textContent = `${voltage} V`;
-  document.getElementById('current').textContent = `${current} A`;
+  //document.getElementById('current').textContent = `${current} A`;
   document.getElementById('percent').textContent = `${percent} %`;
 
   // เปลี่ยนสีถ้าแบตต่ำกว่า 20%
   const percentEl = document.getElementById('percent');
   percentEl.style.color = parseFloat(percent) < 20 ? 'red' : 'white';
-});
+  });
+  } else {
+  console.warn("⚠️ electronAPI.onPowerUpdate is undefined.");
+  }
 
-
+// IMU and Magnetometer toggle
 toggle_imu.addEventListener('change', () => {
   const variableId = 0x09; // use_imu
   const value = toggle.checked ? 1 : 0;
@@ -273,4 +271,34 @@ toggle_mag.addEventListener('change', () => {
   const variableId = 0x0A; // use_imu
   const value = toggle.checked ? 1 : 0;
   window.robotControl.sendCommand_vairable(variableId, value);
+});
+
+// เช็คสถานะการเชื่อมต่อ
+window.electronAPI.onConnectionStatus((status) => {
+  let text = ' Unknown';
+  if (status === 'connected') text = ' Connected';
+  else if (status === 'disconnected') text = ' Disconnected';
+  else if (status === 'error') text = ' Error';
+
+  if (connectionEl) {
+    connectionEl.textContent = text;
+    connectionEl.className = status;
+  }
+});
+
+
+document.getElementById('btn-static-map').addEventListener('click', () => {
+  document.getElementById('staticMapCanvas').classList.remove('hidden');
+  document.getElementById('liveMapCanvas').classList.add('hidden');
+
+  document.getElementById('btn-static-map').classList.add('active');
+  document.getElementById('btn-live-map').classList.remove('active');
+});
+
+document.getElementById('btn-live-map').addEventListener('click', () => {
+  document.getElementById('staticMapCanvas').classList.add('hidden');
+  document.getElementById('liveMapCanvas').classList.remove('hidden');
+
+  document.getElementById('btn-static-map').classList.remove('active');
+  document.getElementById('btn-live-map').classList.add('active');
 });

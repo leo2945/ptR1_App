@@ -1,3 +1,5 @@
+console.log('[preload.js] loaded');
+
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('robotControl', {
@@ -24,9 +26,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   connectCameraWS: (ip) => ipcRenderer.send('connect-camera-ws', ip),
   onImage: (callback) => ipcRenderer.on('camera:image', (_, data) => callback(data)),
-  onPowerUpdate: (callback) => ipcRenderer.on('power', (event, data) => callback(data)),
+  onPowerUpdate: (callback) => ipcRenderer.on('power', (_, data) => callback(data)),
   sendCommand_vairable: (variableId, value) => {
     ipcRenderer.send('uint32-command', { variableId, value });
   },
+  onConnectionStatus: (callback) => {
+    ipcRenderer.on('connection-status', (_, status) => callback(status));
+  }
 
 });

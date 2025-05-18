@@ -5,14 +5,27 @@ let cameraSocket = null;
 document.addEventListener('DOMContentLoaded', () => {
   console.log("app: DOMContentLoaded fired!");
   const keyboardToggle = document.getElementById('keyboard-toggle');
-  const pwmInput = document.getElementById('pwm-value');
+  const pwmInput = document.getElementById('pwm-slider');
   const cmdDropdown = document.getElementById('cmd-dropdown');
   const sendSelectedCmdButton = document.getElementById('send-selected-cmd-button');
   const cmdInput = document.getElementById('cmd-input');
   const sendCustomCmdButton = document.getElementById('send-custom-cmd-button');
   const modeLabel = document.getElementById('mode-label');
   const connectButton = document.getElementById('connectButton');
+  // RosBridge IP Dropdown selection
+  const ipSelect = document.getElementById('ip-dropdown');
+  const connectBtn = document.getElementById('selected-ip');
+  
   loadVideos(); 
+  if (connectBtn && ipSelect) {
+    connectBtn.addEventListener('click', () => {
+      const ip = ipSelect.value;
+      console.log(`🔌 Connecting to ROSBridge at ${ip}`);
+      window.electronAPI.connectROSBridge(ip);
+    });
+  } else {
+    console.warn("❌ IP selector or connect button not found in DOM");
+  }
 
   // connect image ws ip
   connectButton.addEventListener('click', () => {
@@ -55,14 +68,13 @@ document.addEventListener('DOMContentLoaded', () => {
 const pressedKeys = new Set();
 const intervalMap = new Map();
 const pwmMap = new Map();
-//let pwmMax = 200;
 const pwmStep = 5;
-const pwmInitial = 50;
+const pwmInitial = 40;
 
 const sendKeyDrive = (event) => {
   if (!event || !event.code) return;
   const keyboardToggle = document.getElementById('keyboard-toggle');
-  let pwmInput = document.getElementById('pwm-value');
+  let pwmInput = document.getElementById('pwm-slider');
   const modeLabel = document.getElementById('mode-label');
   if (!keyboardToggle || !pwmInput || !modeLabel) return;
   if (modeLabel.textContent.trim().toUpperCase() !== 'MANUAL ON') return;

@@ -249,6 +249,158 @@ input:checked + .slider:before {
   transform: translateY(2px);
 }
 
+#pwm-slider {
+  width: 200px;    
+  min-width: 200px;
+  max-width: 200px;
+}
+
+
+
+.container {
+  padding: 10px;
+}
+
+.title {
+  font-size: 1.5rem;
+  margin-bottom: 10px;
+  margin-top: 0px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 0.5fr;
+  gap: 16px;
+}
+
+.map-box, .control-box {
+  background-color: #2a2a2a;
+  padding: 16px;
+  border-radius: 8px;
+}
+
+#mapCanvas {
+  width: 100%;
+  height: 400px;
+  background-color: black;
+  border-radius: 4px;
+}
+
+
+.control-box {
+  display: flex;
+  flex-direction: row;
+  justify-content: start;
+  gap: 12px;
+}
+
+.control-btn {
+  padding: 5px 10px;
+  width: 80px;
+
+  font-weight: bold;
+  border: none;
+  border-radius: 6px;
+  color: white;
+  font-size: 10px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.control-btn.purple {
+  background-color: #7c3aed;
+}
+.control-btn.purple:hover {
+  background-color: #2b1155;
+}
+
+.control-btn.blue {
+  background-color: #2563eb;
+}
+.control-btn.blue:hover {
+  background-color: #0d1e4f;
+}
+
+.control-btn.red {
+  background-color: #720404;
+}
+.control-btn.red:hover {
+  background-color: #470404;
+}
+
+.map-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 10px;
+  background-color: #2a2a2a;
+
+}
+.map-left {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.map-mode-toggle {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.toggle-btn {
+  background-color: #444;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.toggle-btn.active {
+  background-color: #5865f2;
+}
+
+.map-canvas {
+  width: 100%;
+  height: 400px;
+  border-radius: 6px;
+  background: black;
+}
+
+.hidden {
+  display: none;
+}
+
+
+
+
+.map-right {
+  flex: 3;
+  background: #2e2e2e;
+  padding: 10px;
+  border-radius: 5px;
+  overflow-y: auto;
+  max-height: 500px;
+}
+
+#select-map-folder-btn {
+  background-color: #5865f2; /* สีพื้นหลัง */
+  color: white;              /* สีตัวอักษร */
+  border: none;              /* เอาขอบปุ่มออก */
+  padding: 10px 20px;        /* ขนาดภายในปุ่ม */
+  font-size: 16px;           /* ขนาดตัวอักษร */
+  border-radius: 8px;        /* มุมโค้งมน */
+  cursor: pointer;           /* เป็นรูปมือเวลาเอาเมาส์ชี้ */
+  margin-bottom: 10px;
+  transition: background-color 0.3s; /* ทำให้เวลาชี้แล้วนิ่ม */
+}
+
+#select-map-folder-btn:hover {
+  background-color: #404eed; /* สีพื้นหลังตอน hover */
+}
 
 
 

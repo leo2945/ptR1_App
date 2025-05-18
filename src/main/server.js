@@ -10,7 +10,7 @@ let rosAutoConnected = false;
 
 let cameraSocket = null;
 
-const BUFFER_SIZE_VOLTAGE = 10;  // ค่าเฉลี่ยจาก 10 วินาที
+const BUFFER_SIZE_VOLTAGE = 50;  // ค่าเฉลี่ยจาก 10 วินาที
 let voltageBuffer = [];
 
 
@@ -71,11 +71,12 @@ function connectROSBridge(url) {
   });
 
   ros.on('connection', () => {
-    console.log('Server : ✅ Connected to ROSBridge at', url);
+    console.log('Serverosbridger : ✅ Connected to ROSBridge at', url);
+    parentPort.postMessage({ type: 'connection', data: 'connected' });
     //subscribe function
     subscribeMapData();
     subscribeSensorData();
-    if (reconnectTimer) {
+    if (reconnectTimer) {20
       clearInterval(reconnectTimer);
       reconnectTimer = null;
       console.log('Server : 🛑 Reconnect attempts stopped after successful connection at', url);
@@ -85,11 +86,13 @@ function connectROSBridge(url) {
   ros.on('error', (error) => {
     console.log('Server : ❌ Error connecting to ROSBridge:');
     //console.log('Server : ❌ Error connecting to ROSBridge:', error);
+    parentPort.postMessage({ type: 'connection', data: 'error' });
     startReconnect();
   });
 
   ros.on('close', () => {
     console.log('Server : 🔌❌ Connection to ROSBridge closed url : ',url);
+    parentPort.postMessage({ type: 'connection', data: 'disconnected' });
     startReconnect();
   });
 }
@@ -268,8 +271,8 @@ function subscribeSensorData() {
 
     // คำนวณ % SOC แบบ linear (12.0V = 0%, 14.6V = 100%)
     let soc = 0;
-    const maxVoltage = 13.40;
-    const minVoltage = 12.0;
+    const maxVoltage = 13.50;
+    const minVoltage = 12.60;
     if (avgVoltage >= maxVoltage) soc = 100;
     else if (avgVoltage <= minVoltage) soc = 0;
     else soc = ((avgVoltage - minVoltage) / (maxVoltage - minVoltage)) * 100;
@@ -279,7 +282,7 @@ function subscribeSensorData() {
       data: {
         voltage: voltage_V.toFixed(2),
         current: current_A.toFixed(2),
-        percent: soc.toFixed(1)
+        percent: soc.toFixed(0)
       }
     });
   });

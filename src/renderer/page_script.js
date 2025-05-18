@@ -10,6 +10,18 @@
       document.getElementById("view-" + item.dataset.view).classList.remove("hidden");
     });
   });
+
+const pwmSlider = document.getElementById('pwm-slider');
+const pwmValueLabel = document.getElementById('pwm-value-label');
+
+if (pwmSlider && pwmValueLabel) {
+  pwmSlider.addEventListener('input', () => {
+    pwmValueLabel.textContent = pwmSlider.value;
+  });
+}
+
+
+
   
 
 
